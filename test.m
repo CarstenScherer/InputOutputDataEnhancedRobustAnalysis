@@ -4,6 +4,13 @@
 % Author  : Tobias Holicki                                                %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
+% This file implements a part of the example from
+% [Holicki and Scherer, "Input-Output-Data-Enhanced Robust Analysis via 
+%  Lifting", 2023]
+% where full explanations are given. In this script only one of the
+% involved LMIs is solved, whereas in 'test_multiple.m' all of them are
+% solved.
+
 
 % Addpath for auxiliary functions.
 addpath(genpath('../AuxiliaryFunctions'));
@@ -113,7 +120,7 @@ cl    = lft(syswd, K); % The last output signal of this is again y and this
 
 % Preparations for generating data from the actual system.
 numtraj  = 1;               % Number of generated trajectories
-hor      = 30;              % Number of data points in each trajectory
+hor      = 10;              % Number of data points in each trajectory
 timehor  = 0:Ts:(hor-1)*Ts; % Time-horizon of each trajectory
 noisebnd = 0.1;            % Bound on the euklidian norm of the elements 
                             % of the noise sequence. Here, these elements 
@@ -123,24 +130,24 @@ noisebnd = 0.1;            % Bound on the euklidian norm of the elements
 x0     = zeros(size(cl.a, 1), 1); % Known initial condition
 cltrue = lft(blkdiag(k, b), cl);  % Actual weighted system
 
-
+% Some known input signal
 syms x;
 ref(x) = piecewise(x <= 1, 10, x >= 1.5, -5, 0);
-r{1} = double(ref(timehor)');
+r{1}   = double(ref(timehor)');
+
 % Generate data of the true system
 for i = 1 : numtraj
     n{i} = noisebnd * rand(hor, inp(2)); % Unknown noisy input
-    %r{i} = 2*randn(hor, inp(3));         % Known input (reference) signal.
-    d    = [n{i}, r{i}];%double(ref(timehor)')];                 % Generalized disturbance
+    d    = [n{i}, r{i}];                 % Generalized disturbance
     % We are only interested in the corresponding measured output.
     [y{i}, ~, x] = lsim(cltrue(out(2)+1:end, :), d, timehor, x0);
 end
 
-
+% We take full Toeplitz matrices involving the data
 toepcols = hor;
 
+% Compute energy gain upper bounds with data-dependent multipliers
 tic
 gad = ana_data(cl, [kI, 1; bI, 1], r, y, noisebnd, toepcols);
-disp(['Achieved performance with measured system data: ', ...
-       num2str(gad)]);
+disp(['Achieved performance with measured system data: ', num2str(gad)]);
 toc

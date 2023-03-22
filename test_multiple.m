@@ -4,6 +4,13 @@
 % Author  : Tobias Holicki                                                %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
+% This file implements the example from
+% [Holicki and Scherer, "Input-Output-Data-Enhanced Robust Analysis via 
+%  Lifting", 2023]
+% where full explanations are given. Note that this scrupt runs for quite 
+% some time since a number LMI problems are solved with increasing size.
+% In the script 'test.m' only one of these LMIs is solved.
+
 
 % Addpath for auxiliary functions.
 addpath(genpath('../AuxiliaryFunctions'));
@@ -102,11 +109,16 @@ noisebnd = [0.1, 0.05, 0.01]; % Bound on the euklidian norm of the elements
                               % of the noise.
 shor = [10, 15, 20, 30, 40];  % Some shorter horizons
 
+% Initialization of energy gain upper bounds
 ga = zeros(length(noisebnd), length(shor));
 
+% Some known input signal
 syms x;
 r(x) = piecewise(x <= 1, 10, x >= 1.5, -5, 0);
-r    = double(r(timehor)'); % Some known input signal
+r    = double(r(timehor)'); 
+
+% Determine energy gain upper bounds for several horizon lengths as in shor
+% and for several bounds on the input noise sequence.
 for l = 1 : length(noisebnd)
     % Generate data of the true system on full horizon
     n = noisebnd(l) * rand(hor, inp(2)); % Unknown noisy input
@@ -114,15 +126,13 @@ for l = 1 : length(noisebnd)
     % We are only interested in the corresponding measured output.
     [y, ~, ~] = lsim(cltrue(out(2)+1:end, :), d, timehor, x0);
 
-    
+    % Loop over the horizons. This is done in a way such that the upper
+    % bounds get smaller monotonically.
     for i = 1 : length(shor)
         yc{1}    = y(1:shor(i), :);
         rc{1}    = r(1:shor(i), :);
         toepcols = shor(i);
-        tic
         ga(l, i) = ana_data(cl, udata, rc, yc, noisebnd(l), toepcols);
-        toc
     end
-
 end
 
