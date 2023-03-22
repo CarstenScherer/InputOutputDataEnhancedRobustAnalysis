@@ -51,7 +51,7 @@ function [ gao ] = ana_data( sys, udata, r, y, noisebound, toepcols, opt)
         y                 cell
         noisebound (1, 1) double
         toepcols   (1, 1) {mustBeInteger} = 1
-        opt.opt    (1, 5) double          = [1e-3, 300, 1e11, 50, 1]
+        opt.opt    (1, 5) double          = [1e-3, 200, 1e11, 50, 1]
     end
 
     %% Abbreviations
@@ -144,16 +144,21 @@ function [ gao ] = ana_data( sys, udata, r, y, noisebound, toepcols, opt)
     setlmis([]);
     
     [ga, ~,  ~] = lmivar(1, [1, 1]);  % Energy gain upper bound
-    [ Y, ~, sY] = lmivar(1, [lx, 1]); % Lyapunov certificate
-    
-    % Static DG-scalings
+    [ Y, n, sY] = lmivar(1, [lx, 1]); % Lyapunov certificate
+
+    % Static DG-scalings for the lifted system. We actually use scalings
+    % with a particular block band structure for better efficiency.
     P = [];
     M = cell(lu, 1);
     for i = 1 : lu
         oc            = udatas(i, 3);
-        [M{i}, ~, sM] = lmivar(2, oc * [1, 1]);
+        % One could use [M{i}, ~, sM] = lmivar(2, oc*[1, 1]) but this only
+        % yields slightly better upper bounds at the cost of a much larger
+        % computational burden.
+        [M{i}, n, sM] = blkbandlmivar(oc/si, si, n);
         P             = blkdiag(P, [zeros(oc), sM; sM', zeros(oc)]);
     end
+
 
     % Inner matrices
     IY  = lmivar(3, blkdiag(sY, -sY, P, zeros(err)));
@@ -176,6 +181,13 @@ function [ gao ] = ana_data( sys, udata, r, y, noisebound, toepcols, opt)
     k = newlmi;
     lmiterm([-k, 1, 1, Y], 1, 1);
     
+    % *Uncertainty LMIs* 
+    % This corresponds to the employed DG-scalings
+    for i = 1 : lu
+        k = newlmi;
+        lmiterm([-k, 1, 1, M{i}], 1, 1, 's'); 
+    end
+
     % *System LMI* (after a Schur complement)
     k = newlmi;
     lmiterm([-k, 1, 1, IY], OY1', OY1);
@@ -188,13 +200,6 @@ function [ gao ] = ana_data( sys, udata, r, y, noisebound, toepcols, opt)
         for i = 1 : toepcols
             lmiterm([-k, 1, 1, D{i, j}], ODs{i}', ODs{i});
         end
-    end
-
-    % *Uncertainty LMIs* 
-    % This corresponds to the employed DG-scalings
-    for i = 1 : lu
-        k = newlmi;
-        lmiterm([-k, 1, 1, M{i}], 1, 1, 's'); 
     end
 
     % *Data*

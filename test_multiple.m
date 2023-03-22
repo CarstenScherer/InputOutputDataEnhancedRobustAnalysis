@@ -90,7 +90,7 @@ cl    = lft(syswd, K); % The last output signal of this is again y and this
                        % in the paper.
 
 % Preparations for generating data from the actual system.
-hor      = 30;              % Number of data points in each trajectory
+hor      = 40;              % Number of data points in each trajectory
 timehor  = 0:Ts:(hor-1)*Ts; % Time-horizon of each trajectory
 
 x0     = zeros(size(cl.a, 1), 1); % Known initial condition
@@ -100,14 +100,16 @@ noisebnd = [0.1, 0.05, 0.01]; % Bound on the euklidian norm of the elements
                               % of the noise sequence. Here, these elements 
                               % are scalar, which simplifies the generation 
                               % of the noise.
-shor = [10, 15, 20, 25, 30];  % Some shorter horizons
+shor = [10, 15, 20, 30, 40];  % Some shorter horizons
 
 ga = zeros(length(noisebnd), length(shor));
 
+syms x;
+r(x) = piecewise(x <= 1, 10, x >= 1.5, -5, 0);
+r    = double(r(timehor)'); % Some known input signal
 for l = 1 : length(noisebnd)
     % Generate data of the true system on full horizon
     n = noisebnd(l) * rand(hor, inp(2)); % Unknown noisy input
-    r = 2*randn(hor, inp(3));            % Known input reference.
     d    = [n, r];                       % Generalized disturbance
     % We are only interested in the corresponding measured output.
     [y, ~, ~] = lsim(cltrue(out(2)+1:end, :), d, timehor, x0);

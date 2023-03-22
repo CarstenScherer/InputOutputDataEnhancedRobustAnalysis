@@ -37,7 +37,7 @@ function [ gao ] = ana_lifted( sys, udata, h, opt )
     arguments
         sys     {mustBeA(sys, "ss")}
         udata   (:, 3) double
-        h       {mustBeInteger} = 2
+        h       {mustBeInteger, mustBePositive} = 2
         opt.opt (1, 5) double   = [1e-3, 200, 1e7, 50, 1]
     end
     
@@ -83,14 +83,18 @@ function [ gao ] = ana_lifted( sys, udata, h, opt )
     setlmis([]);
     
     [ga, ~,  ~] = lmivar(1, [1, 1]);  % Energy gain upper bound
-    [ Y, ~, sY] = lmivar(1, [lx, 1]); % Lyapunov certificate
+    [ Y, n, sY] = lmivar(1, [lx, 1]); % Lyapunov certificate
     
-    % Static DG-scalings for the lifted system
+    % Static DG-scalings for the lifted system. We actually use scalings
+    % with a particular block band structure for better efficiency.
     P = [];
     M = cell(lu, 1);
     for i = 1 : lu
         oc            = udata(i, 3);
-        [M{i}, ~, sM] = lmivar(2, oc * [1, 1]);
+        % One could use [M{i}, ~, sM] = lmivar(2, oc*[1, 1]) but this only
+        % yields slightly better upper bounds at the cost of a much larger
+        % computational burden.
+        [M{i}, n, sM] = blkbandlmivar(oc/h, h, n);
         P             = blkdiag(P, [zeros(oc), sM; sM', zeros(oc)]);
     end
     
@@ -105,6 +109,12 @@ function [ gao ] = ana_lifted( sys, udata, h, opt )
     k = newlmi;
     lmiterm([-k, 1, 1, Y], 1, 1);
     
+    % *Uncertainty LMIs*
+    for i = 1 : lu
+        k = newlmi;
+        lmiterm([-k, 1, 1, M{i}], 1, 1, 's');
+    end
+
     % *System LMI* (after a Schur complement)
     k = newlmi;
     lmiterm([-k, 1, 1, IY], OY1', OY1);
@@ -112,11 +122,7 @@ function [ gao ] = ana_lifted( sys, udata, h, opt )
     lmiterm([-k, 2, 1,  0], OY2);
     lmiterm([-k, 2, 2, ga], 1, eye(dis));
     
-    % *Uncertainty LMIs*
-    for i = 1 : lu
-        k = newlmi;
-        lmiterm([-k, 1, 1, M{i}], 1, 1, 's');
-    end
+
     
     %% Solve the LMI problem
     

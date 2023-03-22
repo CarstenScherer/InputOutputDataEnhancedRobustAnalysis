@@ -9,15 +9,15 @@
 addpath(genpath('../AuxiliaryFunctions'));
 
 % Clean up.
-%clc
-%clear
+clc
+clear
 
 %% Problem description
 
 % Parameters involved in a satellite model essentially taken from
 %  [G. F. Franklin, J. D. Powell, A. Emami-Naeini, Feedback Control of 
 %   Dynamic Systems, 2010]
-% We assume that k and b are unknown
+% We assume that k and b are not known exactly
 J1 = 1;
 J2 = 0.1;
 k  = 0.091;          % Actual value of k that is only used for simulations
@@ -74,7 +74,8 @@ sysw = blkdiag(eye(out(1)), we, wu, eye(out(3))) * sysd * ...
 % Weighted uncertain plant
 syswu = lft(blkdiag(ku, bu), sysw);
 
-% Design an Hinfty controller for the nominal weighted generalized plant
+% Design an Hinfty controller for the nominal weighted generalized plant.
+% Note that hinfstruct does not work well on this particular example...
 [K, ~, ga] = hinfsyn(syswu.NominalValue, out(3), inp(4));
 disp(['Achieved performance for nominal plant: ', num2str(ga)]);
 
@@ -83,20 +84,21 @@ disp(['Achieved performance for nominal plant: ', num2str(ga)]);
 disp(['Achieved performance for the actual plant: ', ...
       num2str(hinfnorm(lft(usubs(syswu, 'ku', k, 'bu', b), K)))])
 
-
 % Without such knowledge, we can, e.g., perform a robust analysis with
 % static multipliers and based on the knowledge of the uncertainty ranges
-% kI and bI.
+% kI and bI. Naturally, the obtained bounds can be much larger.
 disp(['Achieved robust performance with static multipliers: ', ...
       num2str(ana(lft(sysw, K), [kI, 1; bI, 1]))]);
 
 % We could also use the knowledge that the uncertainties aren't
 % time-varying but constant. This can be done, e.g., by using the lifting
 % approach with some horizon length h.
-hor = 3;
+hor = 9;
+tic
 disp(['Achieved robust performance with static multipliers and ', ...
       'lifting with horizon ', num2str(hor), ' : ', ...
        num2str(ana_lifted(lft(sysw, K), [kI, 1; bI, 1], hor))]);
+toc
 
 %% Incorporating data
 
@@ -111,9 +113,9 @@ cl    = lft(syswd, K); % The last output signal of this is again y and this
 
 % Preparations for generating data from the actual system.
 numtraj  = 1;               % Number of generated trajectories
-hor      = 20;              % Number of data points in each trajectory
+hor      = 30;              % Number of data points in each trajectory
 timehor  = 0:Ts:(hor-1)*Ts; % Time-horizon of each trajectory
-noisebnd = 0.05;            % Bound on the euklidian norm of the elements 
+noisebnd = 0.1;            % Bound on the euklidian norm of the elements 
                             % of the noise sequence. Here, these elements 
                             % are scalar, which simplifies the generation 
                             % of the noise.
@@ -121,20 +123,24 @@ noisebnd = 0.05;            % Bound on the euklidian norm of the elements
 x0     = zeros(size(cl.a, 1), 1); % Known initial condition
 cltrue = lft(blkdiag(k, b), cl);  % Actual weighted system
 
+
+syms x;
+ref(x) = piecewise(x <= 1, 10, x >= 1.5, -5, 0);
+r{1} = double(ref(timehor)');
 % Generate data of the true system
 for i = 1 : numtraj
     n{i} = noisebnd * rand(hor, inp(2)); % Unknown noisy input
-    r{i} = 2*randn(hor, inp(3));         % Known input (reference) signal.
-    d    = [n{i}, r{i}];                 % Generalized disturbance
+    %r{i} = 2*randn(hor, inp(3));         % Known input (reference) signal.
+    d    = [n{i}, r{i}];%double(ref(timehor)')];                 % Generalized disturbance
     % We are only interested in the corresponding measured output.
-    [y{i}, ~, ~] = lsim(cltrue(out(2)+1:end, :), d, timehor, x0);
+    [y{i}, ~, x] = lsim(cltrue(out(2)+1:end, :), d, timehor, x0);
 end
 
 
 toepcols = hor;
 
-
+tic
 gad = ana_data(cl, [kI, 1; bI, 1], r, y, noisebnd, toepcols);
 disp(['Achieved performance with measured system data: ', ...
        num2str(gad)]);
-
+toc
