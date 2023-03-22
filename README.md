@@ -1,5 +1,6 @@
 # Input Output Data Enhanced Robust Analysis
 
+[![DOI](https://zenodo.org/badge/551302201.svg)](https://zenodo.org/badge/latestdoi/551302201)
 [![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/TobiasHolicki/InputOutputDataEnhancedRobustAnalysis/blob/main/LICENSE.md)
 
 
