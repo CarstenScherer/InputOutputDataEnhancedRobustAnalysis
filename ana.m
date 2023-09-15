@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % File    : ana.m                                                         %
 %                                                                         %
-% Author  : Tobias Holicki, University of Stuttgart                       %
+% Author  : Tobias Holicki                                                %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % This function returns (if possible) an upper bound on the robust energy
